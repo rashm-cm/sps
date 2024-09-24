@@ -16,7 +16,7 @@
 .service-item {
     width: 300px; /* Adjust as needed */
     padding: 16px;
-    background-color: #f4f4f4;
+    background-color: #968c8c;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
@@ -32,7 +32,7 @@
 
 
 .service-card {
-    background-color: #f8f9fa;
+    background-color: #c4cfda;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     width: 400px;

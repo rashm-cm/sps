@@ -35,46 +35,72 @@ describe('Sequelize Models & API Test', () => {
  
   const insertTestData = async () => {
     try {
-      const admin123 = await bcrypt.hash('admin', saltRounds); // Hash the password for consistency
-      const customerPassword = await bcrypt.hash('password123', saltRounds); // Hash the password for consistency
+      const adminPasswordHash = await bcrypt.hash('Admin@123', saltRounds); // Hash the password for the admin
+      const customerPasswordHash = await bcrypt.hash('Password@123', saltRounds); // Hash the password for the customer
  
-      const admin = await User.findOne({
-        where: { email: 'admin@example.com' }
+      // Check if the admin exists, and create if not
+      const [admin, createdAdmin] = await User.findOrCreate({
+        where: { email: 'admin@example.com' },
+        defaults: {
+          name: 'Admin', // Set default admin name if required
+          email: 'admin@example.com',
+          password: adminPasswordHash, // Insert the hashed password
+          role: 'admin', // Assuming you have a 'role' field
+        }
       });
  
-      if (admin) {
-        console.log('Admin user retrieved:', admin.toJSON());
+      if (createdAdmin) {
+        console.log('Admin user created:', admin.toJSON());
       } else {
-        console.log('Admin user not found');
+        console.log('Admin user already exists:', admin.toJSON());
       }
  
-      // Fetch the customer user
-      const customer = await User.findOne({
-        where: { email: 'john@example.com' }
+      // Check if the customer exists, and create if not
+      const [customer, createdCustomer] = await User.findOrCreate({
+        where: { email: 'john@example.com' },
+        defaults: {
+          name: 'Customer', // Set default customer name if required
+          email: 'john@example.com',
+          password: customerPasswordHash, // Insert the hashed password
+          role: 'customer', // Assuming you have a 'role' field
+        }
       });
  
-      if (customer) {
-        console.log('Customer user retrieved:', customer.toJSON());
+      if (createdCustomer) {
+        console.log('Customer user created:', customer.toJSON());
       } else {
-        console.log('Customer user not found');
+        console.log('Customer user already exists:', customer.toJSON());
       }
  
+      // Create a new service
       const service = await Service.create({
         service_name: 'Premium Service',
       });
-console.log('Customer user retrieved:', customer.toJSON());
+ 
+      console.log('Service created:', service.toJSON());
+ 
+      // Create a new plan
       const plan = await Plan.create({
         service_id: service.id,
         plan_name: 'basic', // Ensure this matches the ENUM values
         features: 'Feature 1, Feature 2',
       });
  
-      await CustomerService.create({
-        customer_id: customer.id,
-        service_id: service.id,
-        plan_name: 'basic',
-        features: 'Feature 1, Feature 2'
+      console.log('Plan created:', plan.toJSON());
+ 
+      // Link the customer to the service
+      await CustomerService.findOrCreate({
+        where: {
+          customer_id: customer.id,
+          service_id: service.id,
+        },
+        defaults: {
+          plan_name: 'basic',
+          features: 'Feature 1, Feature 2',
+        }
       });
+ 
+      console.log('CustomerService created or already exists.');
     } catch (error) {
       console.error('Error inserting test data:', error);
     }
@@ -97,7 +123,7 @@ console.log('Customer user retrieved:', customer.toJSON());
   it('POST /login - admin should return a token upon successful login', async () => {
     const loginResponse = await request(app)
       .post('/login')
-      .send({ email: 'admin@example.com', password: 'admin' });
+      .send({ email: 'admin@example.com', password: 'Admin@123' });
  
     console.log('Admin Login Response Status Code:', loginResponse.statusCode);
     console.log('Admin Login Response Body:', loginResponse.body);
@@ -191,7 +217,7 @@ console.log('Customer user retrieved:', customer.toJSON());
       .post('/requests')
       .send({
         customer_id: 2,
-        service_id: 5,
+        service_id: 13,
         plan: 'basic',
         request_type: 'creation',
       })
@@ -205,6 +231,8 @@ console.log('Customer user retrieved:', customer.toJSON());
     expect(response.body.Message).toBe('Request created successfully');
     expect(response.body.Request).toHaveProperty('id');
   });
+ 
+ 
   it('POST /approve-request/:id - should approve a request', async () => {
     // First, create a request to approve
     const createResponse = await request(app)
@@ -272,18 +300,21 @@ console.log('Customer user retrieved:', customer.toJSON());
        
  
   it('DELETE /deleteservice/:id - admin should delete a service', async () => {
-    const service = await Service.findOne({ where: { service_name: 'New Service' } });
- 
+    // Create a new service for the test
+    const newService = await Service.create({
+      service_name: 'New Service',
+      // Other fields if necessary
+    });
     const response = await request(app)
-      .delete(`/deleteservice/${service.id}`)
+      .delete(`/deleteservice/${newService.id}`)
       .set('Cookie', `token=${adminToken}`);
- 
+  
     console.log('Admin Delete Service Response Body:', response.body);
- 
+  
     expect(response.statusCode).toBe(200);
     expect(response.body.Status).toBe('Service deleted successfully');
   });
- 
+  
   it('GET /logout - admin should clear the authentication token', async () => {
     const response = await request(app)
       .get('/logout')
@@ -294,12 +325,23 @@ console.log('Customer user retrieved:', customer.toJSON());
     expect(response.statusCode).toBe(200);
     expect(response.body.Status).toBe('Success');
   });
+  it('POST /login - should show incorrect password error', async () => {
+    const loginResponse = await request(app)
+      .post('/login')
+      .send({ email: 'john@example.com', password: 'password124' }); // Incorrect password
  
+    console.log('Login Response Status Code:', loginResponse.statusCode);
+    console.log('Login Response Body:', loginResponse.body);
+ 
+    // Expecting a 401 Unauthorized response due to incorrect password
+    expect(loginResponse.statusCode).toBe(401);
+    expect(loginResponse.body.Error).toBe('Incorrect Password');
+  });
   // Customer-related tests
   it('POST /login - customer should return a token upon successful login', async () => {
     const loginResponse = await request(app)
       .post('/login')
-      .send({ email: 'john@example.com', password: 'password123' });
+      .send({ email: 'john@mail.com', password: 'admin12345' });
  
     console.log('Customer Login Response Status Code:', loginResponse.statusCode);
     console.log('Customer Login Response Body:', loginResponse.body);
@@ -319,26 +361,11 @@ console.log('Customer user retrieved:', customer.toJSON());
     expect(loginResponse.statusCode).toBe(200);
     expect(customerToken).toBeDefined();
   });
-  it('POST /login - should show incorrect password error', async () => {
-    const loginResponse = await request(app)
-      .post('/login')
-      .send({ email: 'john@example.com', password: 'password124' }); // Incorrect password
- 
-    console.log('Login Response Status Code:', loginResponse.statusCode);
-    console.log('Login Response Body:', loginResponse.body);
- 
-    // Expecting a 401 Unauthorized response due to incorrect password
-    expect(loginResponse.statusCode).toBe(401);
-    expect(loginResponse.body.Error).toBe('Incorrect Password');
-  });
- 
   it('GET /services - customer should fetch all services', async () => {
     const response = await request(app)
       .get('/services')
       .set('Cookie', `token=${customerToken}`);
- 
     console.log('Customer Get Services Response Body:', response.body);
- 
     expect(response.statusCode).toBe(200);
     expect(response.body.length).toBeGreaterThan(0);
   });
@@ -353,9 +380,6 @@ console.log('Customer user retrieved:', customer.toJSON());
  
     expect(response.statusCode).toBe(200);
   });
- 
- 
- 
   afterAll(async () => {
     try {
       await sequelize.close();
@@ -367,4 +391,3 @@ console.log('Customer user retrieved:', customer.toJSON());
    
   });
 });
- 

@@ -237,8 +237,8 @@ html, body {
 .service-requests-box,
 .customer-table-box,
 .customer-details {
-    width: 100%;
-    max-width: 600px;
+    width: 200%;
+    max-width: 1000px;
     background: rgba(215, 219, 228, 0.7);
     border-radius: 12px;
     border: 1px solid rgba(26, 25, 25, 0.374);
@@ -367,9 +367,9 @@ html, body {
 
 .available-services-box,
 .create-service-box {
-    background: rgba(224, 226, 231, 0.7);
+    background: rgba(159, 160, 165, 0.7);
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.125);
+    border: 1px solid rgba(10, 9, 9, 0.125);
     padding: 20px;
     backdrop-filter: blur(4px) saturate(184%);
     -webkit-backdrop-filter: blur(4px) saturate(184%);

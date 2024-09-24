@@ -50,6 +50,28 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
+const createAdmin = async () => {
+  try {
+      await sequelize.authenticate();
+
+      const hashedPassword = await bcrypt.hash('Admin@123', saltRounds);
+
+      await User.create({
+          name: 'Admin',
+          email: 'admin@example.com',
+          password: hashedPassword,
+          role: 'admin'
+      });
+
+      console.log("Admin user created successfully.");
+
+  } catch (err) {
+      console.error("Error creating admin user:", err);
+  } 
+};
+
+createAdmin();
+
 // Middleware to verify if the user is authenticated
 const verifyUser = (req, res, next) => {
   const token = req.cookies.token;
@@ -412,7 +434,7 @@ app.post("/customer-service/enroll", verifyUser, async (req, res) => {
 
 app.post("/requests", async (req, res) => {
   try {
-    const { customer_id, service_id, plan, request_type, feedback } = req.body;
+    const { customer_id, service_id, plan, request_type, feedback,rating } = req.body;
 
     const service = await Service.findByPk(service_id);
     const selectedPlan = await Plan.findOne({
@@ -432,7 +454,8 @@ app.post("/requests", async (req, res) => {
       plan,
       features: selectedPlan.features,
       request_type,
-      feedback
+      feedback,
+      rating,
        // Optional: Add features if needed
     });
 
@@ -462,7 +485,6 @@ app.post("/approve-request/:id", async (req, res) => {
     }
 
     // Fetch service and user information based on the request
-
     let updateResult;
 
     switch (request.request_type) {
@@ -507,22 +529,34 @@ app.post("/approve-request/:id", async (req, res) => {
         if (!name) {
           return res.status(404).json({ Error: "Customer ID not found" });
         }
+
+        // Store feedback and rating from the request (added)
+        const feedback = request.feedback || "No feedback provided"; // Optional feedback
+        const rating = request.rating || 0; // Rating (default 0 if not provided)
+
+        // Terminate service
         await CustomerService.destroy({
           where: {
             customer_id: request.customer_id,
             service_id: request.service_id,
           },
         });
+
+        // Archive the terminated service details with rating (added)
         await Archive.create({
           customer_id: request.customer_id,
           customer_name: name.name,
           service_id: request.service_id,
           plan_name: service.plan_name,
           features: service.features,
+          feedback: feedback, // Save feedback
+          rating: rating, // Save rating
           terminated_at: new Date(),
         });
 
+        // Remove the request from the request table
         await Request.destroy({ where: { id: requestId } });
+
         return res.json({
           Status: "Success",
           Message: "Request approved and service terminated",
@@ -542,7 +576,10 @@ app.post("/approve-request/:id", async (req, res) => {
         if (customer && service1) {
           sendConfirmationEmail(customer.email, service1.service_name, request.plan);
         }
+
+        // Remove the request from the request table
         await Request.destroy({ where: { id: requestId } });
+
         return res.json({
           Status: "Success",
           Message: "Request approved and service enrolled",
@@ -556,6 +593,7 @@ app.post("/approve-request/:id", async (req, res) => {
     return res.status(500).json({ Error: "Error approving request" });
   }
 });
+
 
 
 app.delete("/requests/:id", async (req, res) => {

@@ -10,8 +10,9 @@ const Configuresidebar = ({ customerId, service, closeSidebar }) => {
   const [planLevels, setPlanLevels] = useState([]);
   const [modalVisible, setModalVisible] = useState(false); // Track modal visibility
   const [modalType, setModalType] = useState(''); // Track if it's for plan change or termination
-  const [newPlan, setNewPlan] = useState(''); 
-  const [feedback,setFeedback] = useState('');
+  const [newPlan, setNewPlan] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [rating, setRating] = useState(0); // New state for rating
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
@@ -85,7 +86,7 @@ const Configuresidebar = ({ customerId, service, closeSidebar }) => {
   const confirmPlanChange = async () => {
     setModalVisible(false); // Close modal after confirmation
     window.location.reload();
-    
+
     const fetchPlanFeatures = async (planId, serviceId) => {
       try {
         const res = await axios.get(`http://localhost:8081/plans/${planId}/service/${serviceId}`);
@@ -126,7 +127,7 @@ const Configuresidebar = ({ customerId, service, closeSidebar }) => {
   const confirmTermination = async () => {
     setModalVisible(false); // Close modal after confirmation
     window.location.reload();
-    
+
     const terminationRequest = {
       customer_id: customerId,
       service_id: service.service_id,
@@ -134,7 +135,8 @@ const Configuresidebar = ({ customerId, service, closeSidebar }) => {
       features: service.features,
       request_type: 'termination',
       status: 'termination',
-      feedback: feedback
+      feedback: feedback,
+      rating: rating, // Send the rating along with the feedback
     };
 
     try {
@@ -149,6 +151,25 @@ const Configuresidebar = ({ customerId, service, closeSidebar }) => {
       console.log('Error sending termination request:', err);
       alert('An error occurred while sending the termination request.');
     }
+  };
+
+  // Function to render stars for rating
+  const renderStars = () => {
+    return (
+      <div className="rating-stars">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span
+            key={star}
+            onClick={() => setRating(star)}
+            style={{ cursor: 'pointer', color: star <= rating ? 'gold' : 'gray', fontSize: '24px' }}
+          >
+            ★
+          </span>
+        ))}
+        
+      </div>
+      
+    );
   };
 
   return (
@@ -184,76 +205,72 @@ const Configuresidebar = ({ customerId, service, closeSidebar }) => {
         Terminate Service
       </button>
 
-      
+      {/* Modal rendering */}
+      {modalVisible && (
+        <div className="modal-overlay">
+          <div className="pop-up">
+            <h2>{modalType === 'planChange' ? 'Confirm Plan Change' : 'Confirm Termination'}</h2>
 
-      {/* {modalVisible && (
-        <Modal
-          title={modalType === 'planChange' ? 'Confirm Plan Change' : 'Confirm Termination'}
-          message={
-            modalType === 'planChange'
-              ? `Are you sure you want to change your plan to ${newPlan}?`
-              : `Are you sure you want to terminate the ${service.service_name} service?`
-          }
-          onConfirm={modalType === 'planChange' ? confirmPlanChange : confirmTermination}
-          onCancel={closeModal}
-        />
-      )} */}
+            <p>
+              {modalType === 'planChange' ? (
+                <>
+                  {action === 'upgrade' && (
+                    <span
+                      style={{
+                        fontSize: '25px',
+                        display: 'block',
+                        marginTop: '10px',
+                        color: 'orange',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      Caution! Additional charges will be applied.
+                    </span>
+                  )}
+                  Are you sure you want to change your plan to
+                  <span style={{ fontSize: '25px', fontWeight: 'bold', color: 'red' }}>
+                    {' '}
+                    {newPlan}?{' '}
+                  </span>
+                </>
+              ) : (
+                <>
+                  Are you sure you want to terminate the
+                  <span style={{ fontWeight: 'bold', color: 'red' }}> {service.service_name} </span>
+                  service?
+                </>
+              )}
+            </p>
 
-{modalVisible && (
-  <div className="modal-overlay">
-    <div className="pop-up">
-      <h2>{modalType === 'planChange' ? 'Confirm Plan Change' : 'Confirm Termination'}</h2>
-      
-      <p>
-      <p>
-  {modalType === 'planChange' ? (
-    <>
-      {action === 'upgrade' && (
-        <span style={{fontSize: '25px', display: 'block', marginTop: '10px', color: 'orange', fontWeight: 'bold' }}>
-          Caution! Additional charges will be applied.
-        </span>
+            {/* Conditionally render feedback textbox for termination modal */}
+            {modalType === 'termination' && (
+              <>
+                <textarea
+                  placeholder="Please provide feedback(optional)"
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  style={{ width: '100%', height: '100px', marginTop: '10px' }}
+                />
+                {/* Render rating stars */}
+                <h5>Rate your experience:</h5>
+                {renderStars()}
+              </>
+            )}
+
+            <div className="modal-actions">
+              <button
+                className="modal-btn confirm-btn"
+                onClick={modalType === 'planChange' ? confirmPlanChange : confirmTermination}
+              >
+                Okay
+              </button>
+              <button className="modal-btn cancel-btn" onClick={closeModal}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      Are you sure you want to change your plan to
-      <span style={{ fontSize: '25px', fontWeight: 'bold', color: 'red' }}> {newPlan}? </span>
-      
-    </>
-  ) : (
-    <>
-      Are you sure you want to terminate the
-      <span style={{ fontWeight: 'bold', color: 'red' }}> {service.service_name} </span>
-      service?
-    </>
-  )}
-</p>
-
-</p>
-
-
-      {/* Conditionally render feedback textbox for termination modal */}
-      {modalType === 'termination' && (
-        <textarea
-          placeholder="Please provide feedback(optional)"
-          value={feedback}
-          onChange={(e) => setFeedback(e.target.value)}
-          style={{ width: '100%', height: '100px', marginTop: '10px' }}
-        />
-      )}
-
-      <div className="modal-actions">
-        <button
-          className="modal-btn confirm-btn"
-          onClick={modalType === 'planChange' ? confirmPlanChange : confirmTermination}
-        >
-          Okay
-        </button>
-        <button className="modal-btn cancel-btn" onClick={closeModal}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
     </div>
   );
 };

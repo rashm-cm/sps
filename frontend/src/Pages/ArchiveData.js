@@ -5,6 +5,8 @@ import './ArchiveData.css'; // Import the new CSS file
 
 const ArchiveTable = () => {
   const [archives, setArchives] = useState([]);
+  const [feedback, setFeedback] = useState('');
+  const [rating, setRating] = useState(0); // State for star rating
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,10 +28,22 @@ const ArchiveTable = () => {
     navigate(-1); // Navigate to the previous page
   };
 
+  // Function to render stars based on the rating for each archived record
+  const renderStars = (rating) => {
+    return [...Array(5)].map((star, index) => (
+      <span
+        key={index}
+        style={{ color: index < rating ? "#FFD700" : "#e4e5e9", fontSize: "20px" }}
+      >
+        ★
+      </span>
+    ));
+  };
+
   return (
     <div className="archive-container">
-      {/* <button className="go-back-button" onClick={handleGoBack}>Go Back</button> */}
       <h2 style={{ marginTop: '30px'}}>Archived Services</h2>
+      
       <table className="archive-table">
         <thead>
           <tr>
@@ -39,7 +53,7 @@ const ArchiveTable = () => {
             <th>Plan Name</th>
             <th>Features</th>
             <th>Feedback</th>
-
+            <th>Rating</th> {/* New column for rating */}
             <th>Archived At</th>
           </tr>
         </thead>
@@ -53,12 +67,13 @@ const ArchiveTable = () => {
                 <td>{archive.plan_name}</td>
                 <td>{archive.features || "N/A"}</td>
                 <td>{archive.feedback || "Not Available"}</td>
+                <td>{renderStars(archive.rating || 0)}</td> {/* Display star ratings */}
                 <td>{new Date(archive.updatedAt).toLocaleString()}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan="6">No archived services found.</td>
+              <td colSpan="8">No archived services found.</td>
             </tr>
           )}
         </tbody>
